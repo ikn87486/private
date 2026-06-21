@@ -130,14 +130,25 @@ def lookup(score: float, horizon: int) -> dict:
     """スコアの属するバケットから {prob_up, ret_p25, ret_p50, ret_p75} を返す。
 
     較正未生成なら空dict。スコアが範囲外なら最寄りの端のバケットを使う。
+    `prob_up` はウォークフォワード実績で補正した値（補正未生成なら生値）。生値は `prob_up_raw`。
     """
     buckets = _get_buckets(horizon)
     if not buckets:
         return {}
+    chosen = None
     for bk in buckets:
         if bk["bucket_low"] <= score < bk["bucket_high"]:
-            return bk
-    return buckets[-1] if score >= buckets[-1]["bucket_low"] else buckets[0]
+            chosen = bk
+            break
+    if chosen is None:
+        chosen = buckets[-1] if score >= buckets[-1]["bucket_low"] else buckets[0]
+
+    result = dict(chosen)  # キャッシュを汚さないようコピー
+    raw = result.get("prob_up")
+    if raw is not None:
+        result["prob_up_raw"] = raw
+        result["prob_up"] = calibrated_prob(raw, horizon)
+    return result
 
 
 def is_ready() -> bool:
@@ -248,7 +259,76 @@ def walk_forward_accuracy(
             )
 
     _save_accuracy("walkforward", rows)
+    build_probability_correction(horizons)  # 実績に合わせて表示確率の補正を更新
     return {"ok": True, "n_rows": len(rows), "updated_at": now}
+
+
+# --- 確率のアウトオブサンプル補正（単調回帰） -------------------------------
+
+_CORRECTION_KEY = "prob_correction"
+_CORR_CACHE: dict | None = None
+
+
+def _pav(values: list[float], weights: list[float]) -> list[float]:
+    """重み付き単調回帰（pool-adjacent-violators）。非減少にフィットした値を返す。
+
+    入力は説明変数（予測確率）で昇順に並んでいる前提。新規依存なしのnumpy/純Python実装。
+    """
+    blocks: list[list[float]] = []  # [value, weight, count]
+    for v, w in zip(values, weights):
+        blocks.append([v, w, 1])
+        while len(blocks) >= 2 and blocks[-2][0] > blocks[-1][0]:
+            v2, w2, c2 = blocks.pop()
+            v1, w1, c1 = blocks.pop()
+            nw = w1 + w2
+            blocks.append([(v1 * w1 + v2 * w2) / nw if nw else v1, nw, c1 + c2])
+    out: list[float] = []
+    for v, _w, c in blocks:
+        out.extend([v] * int(c))
+    return out
+
+
+def build_probability_correction(horizons: tuple[int, ...] = HORIZONS) -> dict:
+    """ウォークフォワードの (予測確率→実績) を単調回帰し、表示確率の補正カーブを保存する。
+
+    高スコア帯の過信などを実績側へ写像する。補正は settings(JSON) に保存し、lookup が使う。
+    """
+    correction: dict[str, dict] = {}
+    with db.connect() as conn:
+        rows = conn.execute(
+            "SELECT horizon, predicted_prob, realized_prob, n FROM screen_accuracy "
+            "WHERE method = 'walkforward' ORDER BY horizon, predicted_prob"
+        ).fetchall()
+
+    by_h: dict[int, list] = {}
+    for r in rows:
+        by_h.setdefault(r["horizon"], []).append(r)
+    for h in horizons:
+        items = by_h.get(h, [])
+        if len(items) < 2:
+            continue
+        xs = [float(i["predicted_prob"]) for i in items]
+        ys = [float(i["realized_prob"]) for i in items]
+        ws = [max(int(i["n"]), 1) for i in items]
+        fitted = _pav(ys, ws)  # 予測確率の昇順に並んだ実績を単調化
+        correction[str(h)] = {"x": xs, "y": fitted}
+
+    db.set_setting(_CORRECTION_KEY, correction)
+    global _CORR_CACHE
+    _CORR_CACHE = correction
+    return {"ok": True, "horizons": list(correction.keys())}
+
+
+def calibrated_prob(raw_prob: float, horizon: int) -> float:
+    """生の予測確率を補正カーブで写像する。補正が無ければ生値をそのまま返す。"""
+    global _CORR_CACHE
+    if _CORR_CACHE is None:
+        _CORR_CACHE = db.get_setting(_CORRECTION_KEY, {}) or {}
+    curve = _CORR_CACHE.get(str(horizon))
+    if not curve or len(curve.get("x", [])) < 2:
+        return round(raw_prob, 1)
+    y = float(np.interp(raw_prob, curve["x"], curve["y"]))  # 端点でクランプ
+    return round(y, 1)
 
 
 def live_accuracy(horizons: tuple[int, ...] = HORIZONS) -> dict:

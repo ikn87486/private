@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.stock.screen.evening</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>exec /Users/yuki/Prog/stock/scripts/run_job.sh screen</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/yuki/Prog/stock</string>
+    <!-- 平日 16:45 JST: 当日の日本株終値を反映 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>16</integer><key>Minute</key><integer>45</integer></dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/yuki/Prog/stock/logs/launchd_screen.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/yuki/Prog/stock/logs/launchd_screen.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

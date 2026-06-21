@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.stock.accuracy</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>exec /Users/yuki/Prog/stock/scripts/run_job.sh accuracy</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/yuki/Prog/stock</string>
+    <!-- 土曜 18:00 JST: 較正＋精度を再計算（市場閉場中・重い処理） -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key><integer>6</integer>
+        <key>Hour</key><integer>18</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/yuki/Prog/stock/logs/launchd_accuracy.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/yuki/Prog/stock/logs/launchd_accuracy.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
