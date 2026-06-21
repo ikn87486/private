@@ -1,0 +1,45 @@
+<div class="card">
+  <h2 style="margin-top:0">🔍 利益が出る条件の探索結果</h2>
+  <p style="color:var(--muted);font-size:.85rem">
+    {{ ticker_name }} ／ {{ strategy_label }}（{{ period_label }}）<br>
+    {{ total }} 通りのパラメータを総当たりで検証し、累積リターンの高い順に上位{{ results|length }}件を表示。
+  </p>
+
+  <table class="rank">
+    <thead>
+      <tr>
+        <th>順位</th>
+        {% for name, meta in param_specs.items() %}<th>{{ meta[0] }}</th>{% endfor %}
+        <th>リターン</th>
+        <th>勝率</th>
+        <th>取引</th>
+        <th>最大DD</th>
+        <th>シャープ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        {% for name in param_specs.keys() %}<td>{{ r.params[name] }}</td>{% endfor %}
+        <td class="{{ 'pos' if r.total_return_pct >= 0 else 'neg' }}"><b>{{ r.total_return_pct }}%</b></td>
+        <td>{{ r.win_rate_pct }}%</td>
+        <td>{{ r.n_trades }}</td>
+        <td class="neg">-{{ r.max_drawdown_pct }}%</td>
+        <td>{{ r.sharpe }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="color:var(--muted);font-size:.78rem;margin-top:12px">
+    ※ 過去データへの最適化（カーブフィッティング）に注意。上位の条件が将来も有効とは限りません。
+  </p>
+</div>
+
+<style>
+  table.rank { width:100%; border-collapse:collapse; margin-top:10px; font-size:.85rem; }
+  table.rank th, table.rank td { padding:8px 10px; text-align:right; border-bottom:1px solid #334155; }
+  table.rank th { color:var(--muted); font-weight:600; }
+  table.rank tbody tr:first-child { background:#0f3a2e33; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+</style>

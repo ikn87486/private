@@ -1,0 +1,62 @@
+<div class="card">
+  <h2>実運用トラックレコード</h2>
+  <p class="small muted">過去に出した予測のうち、期限が到来して実績を記入できたものの集計です。</p>
+  {% set o = outcomes_summary %}
+  {% if o.n %}
+  <div class="kpis">
+    <div class="kpi"><div class="v">{{ o.n }}</div><div class="k">記入済みトレード</div></div>
+    <div class="kpi"><div class="v {{ 'up' if (o.win_rate or 0) >= 50 else 'down' }}">{{ o.win_rate }}%</div><div class="k">勝率（出口ルール込み）</div></div>
+    <div class="kpi"><div class="v {{ 'up' if (o.avg_return or 0) > 0 else 'down' }}">{{ o.avg_return }}%</div><div class="k">平均リターン</div></div>
+    <div class="kpi"><div class="v">{{ o.hit_rate }}%</div><div class="k">上昇率（期限まで保有）</div></div>
+  </div>
+  {% else %}
+  <p class="muted">まだ実績がありません。予測を保存（候補一覧の「再評価」）し、期限が経過してから「記録」を押してください。</p>
+  {% endif %}
+</div>
+
+{% macro acc_table(rows, title, at) %}
+<div class="card">
+  <h2>{{ title }}</h2>
+  {% if at %}<p class="small muted">更新: {{ at }}　— 予測確率と実績がほぼ一致（対角線）なら、確率は信頼できます。</p>{% endif %}
+  {% if rows %}
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="l">予測確率帯</th>
+          {% for h in horizons %}<th colspan="3">{{ horizon_labels[h] }}</th>{% endfor %}
+        </tr>
+        <tr>
+          <th class="l"></th>
+          {% for h in horizons %}<th>予測</th><th>実績</th><th>件数</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="l">{{ row.range }}</td>
+          {% for h in horizons %}
+            {% set c = row.by_h.get(h) %}
+            {% if c %}
+            <td class="muted">{{ c.predicted }}%</td>
+            <td class="{{ 'up' if c.realized >= c.predicted else 'down' }}">{{ c.realized }}%</td>
+            <td class="muted small">{{ c.n }}</td>
+            {% else %}<td class="muted">—</td><td class="muted">—</td><td class="muted">—</td>{% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">データがありません。{{ title }} を生成するボタンを押してください。</p>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{{ acc_table(acc_wf, "ウォークフォワード検証（過去・即時に分かる）", acc_wf_at) }}
+{{ acc_table(acc_live, "実運用の記録（時間とともに貯まる）", acc_live_at) }}
+
+<div class="card small muted">
+  ※ 「実績」が「予測」を下回る帯が多ければスコアが楽観的、上回れば悲観的。乖離はスコアの重み調整など改善の手がかりになります。
+</div>

@@ -1,0 +1,127 @@
+<div class="card">
+  <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+    <div>
+      {% if as_of %}<strong>基準日: {{ as_of }}</strong>{% else %}<strong class="muted">未評価</strong>{% endif %}
+      <span class="muted small">　対象 {{ results|length }} 銘柄</span>
+    </div>
+    <div class="small">
+      {% if calibrated %}
+        <span class="up">✓ 較正済み</span> <span class="muted">{{ calibrated_at }}</span>
+      {% else %}
+        <span class="warn">未較正（②を実行すると上昇確率・期待幅が表示されます）</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not results %}
+  <div class="card muted">まだ評価結果がありません。上の「① 最新データで再評価」を押してください。</div>
+{% else %}
+<div class="card">
+  <div class="tabs">
+    {% for h in horizons %}
+    <input type="radio" name="htab" id="h{{ h }}" {% if loop.first %}checked{% endif %}>
+    {% endfor %}
+    {% for h in horizons %}
+    <label for="h{{ h }}">{{ horizon_labels[h] }}</label>
+    {% endfor %}
+
+    {% for h in horizons %}
+    <div class="panel" id="p{{ h }}">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="l">#</th>
+              <th class="l">銘柄</th>
+              <th>市場</th>
+              <th>総合<br>スコア</th>
+              <th>上昇<br>確率</th>
+              <th>期待リターン幅<br>(25%〜75%／中央)</th>
+              <th>エントリー</th>
+              <th>損切り</th>
+              <th>利確目標</th>
+              <th>想定<br>保有</th>
+              <th>決算</th>
+              <th class="l">根拠</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in results %}
+            {% set hd = r.horizons.get(h) %}
+            <tr>
+              <td class="l muted">{{ loop.index }}</td>
+              <td class="l">{{ r.name }}<br><span class="muted small">{{ r.ticker }}</span></td>
+              <td><span class="badge {{ 'jp' if r.market == 'JP' else 'us' }}">{{ r.market }}</span></td>
+              <td class="score">{{ r.score }}</td>
+              {% if hd and hd.prob_up is not none %}
+              <td class="{{ 'up' if hd.prob_up >= 55 else ('down' if hd.prob_up < 45 else '') }}">{{ hd.prob_up }}%</td>
+              <td>
+                <span class="{{ 'up' if hd.ret_p50 > 0 else 'down' }}">中央 {{ hd.ret_p50 }}%</span>
+                <br><span class="muted small">{{ hd.ret_p25 }}% 〜 {{ hd.ret_p75 }}%</span>
+              </td>
+              {% else %}
+              <td class="muted">—</td>
+              <td class="muted">—</td>
+              {% endif %}
+              <td>{{ r.entry }}</td>
+              <td class="down">{{ r.stop if r.stop is not none else '—' }}</td>
+              <td class="up">{{ hd.target if hd and hd.target is not none else '—' }}</td>
+              <td class="muted">{{ hd.hold_days if hd else h }}日</td>
+              <td>
+                {% if r.earnings_warn == 'yes' %}<span class="warn">⚠近い</span>
+                {% elif r.earnings_warn == 'no' %}<span class="muted">—</span>
+                {% else %}<span class="muted">?</span>{% endif %}
+              </td>
+              <td class="l reasons">{{ r.reasons|join('・') if r.reasons else '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if calibrated and hit_rate %}
+<div class="card">
+  <h2 style="font-size:1.1rem;">スコアの的中率（過去データによる裏取り）</h2>
+  <p class="small muted">スコア帯ごとに、その後「上昇した割合」と「リターン中央値」を期間別に集計したものです。
+     上のスコア帯ほど上昇確率が高ければ、スコアが機能している証拠になります。</p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="l">スコア帯</th>
+          {% for h in horizons %}<th colspan="2">{{ horizon_labels[h] }}</th>{% endfor %}
+        </tr>
+        <tr>
+          <th class="l"></th>
+          {% for h in horizons %}<th>上昇確率</th><th>中央リターン</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in hit_rate %}
+        <tr>
+          <td class="l">{{ row.range }}</td>
+          {% for h in horizons %}
+            {% set c = row.by_h.get(h) %}
+            {% if c %}
+            <td class="{{ 'up' if c.prob_up >= 55 else ('down' if c.prob_up < 45 else '') }}">{{ c.prob_up }}%</td>
+            <td class="{{ 'up' if c.ret_p50 > 0 else 'down' }}">{{ c.ret_p50 }}%</td>
+            {% else %}<td class="muted">—</td><td class="muted">—</td>{% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card small muted">
+  ※ 上昇確率・期待リターン幅は過去の分布にもとづく推定であり、将来の値上がりを保証するものではありません。
+  決算をまたぐ取引はギャンブル性が高くなります。投資は自己責任で行ってください。
+</div>

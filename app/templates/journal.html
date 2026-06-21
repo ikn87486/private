@@ -1,0 +1,124 @@
+<style>
+  .metric { background:#0f172a; border-radius:8px; padding:12px 14px; }
+  .m-label { color:var(--muted); font-size:.75rem; margin-bottom:4px; }
+  .m-value { font-size:1.3rem; font-weight:700; }
+  .pos { color:var(--green); } .neg { color:var(--red); } .amber { color:var(--amber); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
+  .insight { background:#0f172a; border-left:3px solid var(--accent); border-radius:6px; padding:12px 14px; margin-bottom:10px; font-size:.9rem; line-height:1.6; }
+  table { width:100%; border-collapse:collapse; font-size:.84rem; margin-top:8px; }
+  th, td { padding:7px 9px; text-align:right; border-bottom:1px solid #334155; }
+  th { color:var(--muted); font-weight:600; }
+  th:first-child, td:first-child, .lcol { text-align:left; }
+  h3 { margin:0 0 12px; font-size:1.05rem; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:640px){ .two{ grid-template-columns:1fr; } }
+  .vs th.win { color:var(--green); } .vs th.loss { color:var(--red); }
+</style>
+
+{% set s = summary %}
+{% if s.n == 0 %}
+  <div class="card">
+    <p style="color:var(--muted)">まだ取引がありません。上の「①データ収集」→「②仮想売買を実行」の順に押してください。
+    {% if coverage %}（データは {{ coverage|length }} 銘柄分、蓄積済み）{% endif %}</p>
+  </div>
+{% else %}
+
+  <!-- 口座サマリー -->
+  <div class="card">
+    <h3>💼 口座サマリー（初期資金 {{ "{:,.0f}".format(account.initial_cash) }}円）</h3>
+    <div class="grid">
+      <div class="metric"><div class="m-label">現在の評価額</div>
+        <div class="m-value {{ 'pos' if account.cash >= account.initial_cash else 'neg' }}">{{ "{:,.0f}".format(account.cash) }}円</div></div>
+      <div class="metric"><div class="m-label">累計損益</div>
+        <div class="m-value {{ 'pos' if s.total_pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(s.total_pnl) }}円</div></div>
+      <div class="metric"><div class="m-label">取引回数</div><div class="m-value">{{ s.n }}回</div></div>
+      <div class="metric"><div class="m-label">勝率</div><div class="m-value">{{ s.win_rate }}%</div></div>
+      <div class="metric"><div class="m-label">プロフィットファクター</div>
+        <div class="m-value {{ 'pos' if s.profit_factor and s.profit_factor >= 1 else 'neg' }}">{{ s.profit_factor }}</div></div>
+      <div class="metric"><div class="m-label">期待値/取引</div>
+        <div class="m-value {{ 'pos' if s.expectancy_pct >= 0 else 'neg' }}">{{ s.expectancy_pct }}%</div></div>
+      <div class="metric"><div class="m-label">平均利益</div><div class="m-value pos">+{{ s.avg_win_pct }}%</div></div>
+      <div class="metric"><div class="m-label">平均損失</div><div class="m-value neg">{{ s.avg_loss_pct }}%</div></div>
+    </div>
+  </div>
+
+  <!-- 勝因・敗因の気づき -->
+  <div class="card">
+    <h3>🧠 勝因・敗因の振り返り（自動分析）</h3>
+    {% for line in insights %}
+    <div class="insight">{{ line }}</div>
+    {% endfor %}
+  </div>
+
+  <!-- 勝ち vs 負け のコンテキスト比較 -->
+  {% if attribution %}
+  <div class="card">
+    <h3>⚖️ 勝ちトレード vs 負けトレード（エントリー時の状況）</h3>
+    <table class="vs">
+      <thead><tr><th class="lcol">指標</th><th class="win">勝ち（{{ attribution.win.n }}件）</th><th class="loss">負け（{{ attribution.loss.n }}件）</th></tr></thead>
+      <tbody>
+        <tr><td class="lcol">上昇相場での建玉比率</td><td>{{ attribution.win.uptrend_ratio }}%</td><td>{{ attribution.loss.uptrend_ratio }}%</td></tr>
+        <tr><td class="lcol">75日線からの乖離</td><td>{{ attribution.win.trend_strength }}%</td><td>{{ attribution.loss.trend_strength }}%</td></tr>
+        <tr><td class="lcol">エントリー時RSI</td><td>{{ attribution.win.entry_rsi }}</td><td>{{ attribution.loss.entry_rsi }}</td></tr>
+        <tr><td class="lcol">直近20日の変動率</td><td>{{ attribution.win.volatility }}%</td><td>{{ attribution.loss.volatility }}%</td></tr>
+        <tr><td class="lcol">平均保有日数</td><td>{{ attribution.win.holding_days }}日</td><td>{{ attribution.loss.holding_days }}日</td></tr>
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="two">
+    <!-- 戦略別 -->
+    <div class="card">
+      <h3>📚 戦略別の成績</h3>
+      <table>
+        <thead><tr><th class="lcol">戦略</th><th>取引</th><th>勝率</th><th>損益</th></tr></thead>
+        <tbody>
+          {% for r in by_strategy %}
+          <tr><td class="lcol">{{ strategy_labels.get(r.strategy, r.strategy) }}</td>
+            <td>{{ r.n }}</td><td>{{ r.win_rate }}%</td>
+            <td class="{{ 'pos' if r.pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(r.pnl) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ベスト/ワースト -->
+    <div class="card">
+      <h3>🏅 ベスト / ワースト取引</h3>
+      <table>
+        <thead><tr><th class="lcol">銘柄</th><th>損益率</th><th class="lcol">理由</th></tr></thead>
+        <tbody>
+          {% for t in best_worst.best %}
+          <tr><td class="lcol">{{ t.name }}</td><td class="pos">+{{ t.return_pct }}%</td><td class="lcol" style="font-size:.78rem;color:var(--muted)">{{ t.exit_reason }}</td></tr>
+          {% endfor %}
+          {% for t in best_worst.worst %}
+          <tr><td class="lcol">{{ t.name }}</td><td class="neg">{{ t.return_pct }}%</td><td class="lcol" style="font-size:.78rem;color:var(--muted)">{{ t.exit_reason }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 出口別成績 -->
+  {% if by_exit %}
+  <div class="card">
+    <h3>🚪 出口別の成績（どの手仕舞いが効いているか）</h3>
+    <table>
+      <thead><tr><th class="lcol">出口の種類</th><th>件数</th><th>勝率</th><th>平均損益率</th><th>損益合計</th></tr></thead>
+      <tbody>
+        {% for e in by_exit %}
+        <tr>
+          <td class="lcol">{{ e.category }}</td>
+          <td>{{ e.n }}</td>
+          <td>{{ e.win_rate }}%</td>
+          <td class="{{ 'pos' if e.avg_ret >= 0 else 'neg' }}">{{ e.avg_ret }}%</td>
+          <td class="{{ 'pos' if e.pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(e.pnl) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+{% endif %}

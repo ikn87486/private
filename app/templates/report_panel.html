@@ -1,0 +1,112 @@
+<style>
+  .rmetric { background:#0f172a; border-radius:8px; padding:12px 14px; }
+  .rm-label { color:var(--muted); font-size:.75rem; margin-bottom:4px; }
+  .rm-value { font-size:1.25rem; font-weight:700; }
+  .rgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  .headline { font-size:1.1rem; font-weight:700; line-height:1.6; }
+  .rec { background:#0f172a; border-left:3px solid var(--amber); border-radius:6px; padding:11px 13px; margin-bottom:9px; font-size:.9rem; line-height:1.6; }
+  .insight { background:#0f172a; border-left:3px solid var(--accent); border-radius:6px; padding:11px 13px; margin-bottom:9px; font-size:.88rem; line-height:1.6; }
+  table { width:100%; border-collapse:collapse; font-size:.84rem; margin-top:8px; }
+  th, td { padding:7px 9px; text-align:right; border-bottom:1px solid #334155; }
+  th { color:var(--muted); font-weight:600; }
+  th:first-child, td:first-child, .lcol { text-align:left; }
+  h3 { margin:0 0 12px; font-size:1.05rem; }
+  .empty { color:var(--muted); }
+  .meta { color:var(--muted); font-size:.8rem; margin-top:6px; }
+</style>
+
+{% if not report %}
+  <div class="card">
+    <p class="empty">まだレポートがありません。「今すぐレポート生成」を押すか、自動売買を数日回してから生成してください。</p>
+  </div>
+{% else %}
+{% set p = report.performance %}
+
+  <!-- 見出し -->
+  <div class="card">
+    <div class="headline">{{ report.headline }}</div>
+    <div class="meta">
+      対象期間: {{ report.period_start or "—" }} 〜 {{ report.period_end or "—" }}　／　生成: {{ report.created_at }}
+    </div>
+  </div>
+
+  <!-- パフォーマンス -->
+  <div class="card">
+    <h3>📊 パフォーマンス</h3>
+    <div class="rgrid">
+      <div class="rmetric"><div class="rm-label">運用リターン</div>
+        <div class="rm-value {{ 'pos' if p.total_return_pct >= 0 else 'neg' }}">{{ "{:+}".format(p.total_return_pct) }}%</div></div>
+      <div class="rmetric"><div class="rm-label">日経平均（同期間）</div>
+        <div class="rm-value">{{ "{:+}".format(p.benchmark_return_pct) if p.benchmark_return_pct is not none else "—" }}%</div></div>
+      <div class="rmetric"><div class="rm-label">対ベンチマーク</div>
+        <div class="rm-value {{ 'pos' if p.vs_benchmark_pt and p.vs_benchmark_pt >= 0 else 'neg' }}">
+          {{ "{:+}pt".format(p.vs_benchmark_pt) if p.vs_benchmark_pt is not none else "—" }}</div></div>
+      <div class="rmetric"><div class="rm-label">総資産</div>
+        <div class="rm-value">{{ "{:,.0f}".format(p.total_value) }}円</div></div>
+      <div class="rmetric"><div class="rm-label">確定損益</div>
+        <div class="rm-value {{ 'pos' if p.realized_pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(p.realized_pnl) }}円</div></div>
+      <div class="rmetric"><div class="rm-label">含み損益</div>
+        <div class="rm-value {{ 'pos' if p.unrealized_pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(p.unrealized_pnl) }}円</div></div>
+      <div class="rmetric"><div class="rm-label">最大ドローダウン</div>
+        <div class="rm-value neg">-{{ p.max_drawdown_pct }}%</div></div>
+      <div class="rmetric"><div class="rm-label">保有銘柄数</div>
+        <div class="rm-value">{{ p.n_positions }}</div></div>
+    </div>
+  </div>
+
+  <!-- 改善提言 -->
+  <div class="card">
+    <h3>💡 改善提言（観察ベース・投資助言ではありません）</h3>
+    {% for r in report.recommendations %}
+    <div class="rec">{{ r }}</div>
+    {% endfor %}
+  </div>
+
+  <!-- 勝因敗因の気づき -->
+  {% if report.insights %}
+  <div class="card">
+    <h3>🧠 確定取引の勝因・敗因</h3>
+    {% for line in report.insights %}
+    <div class="insight">{{ line }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- 戦略別 -->
+  {% if report.by_strategy %}
+  <div class="card">
+    <h3>📚 戦略別の確定成績</h3>
+    <table>
+      <thead><tr><th class="lcol">戦略</th><th>取引</th><th>勝率</th><th>損益</th></tr></thead>
+      <tbody>
+        {% for s in report.by_strategy %}
+        <tr><td class="lcol">{{ s.label }}</td><td>{{ s.n }}</td><td>{{ s.win_rate }}%</td>
+          <td class="{{ 'pos' if s.pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(s.pnl) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- レポート履歴 -->
+  {% if history|length > 1 %}
+  <div class="card">
+    <h3>🗂 レポート履歴</h3>
+    <table>
+      <thead><tr><th class="lcol">生成日時</th><th>運用</th><th>日経</th><th class="lcol">見出し</th></tr></thead>
+      <tbody>
+        {% for h in history %}
+        <tr>
+          <td class="lcol">{{ h.created_at }}</td>
+          <td class="{{ 'pos' if h.total_return_pct >= 0 else 'neg' }}">{{ "{:+}".format(h.total_return_pct) }}%</td>
+          <td>{{ "{:+}".format(h.benchmark_return_pct) if h.benchmark_return_pct is not none else "—" }}%</td>
+          <td class="lcol" style="font-size:.78rem;color:var(--muted)">{{ h.headline }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+{% endif %}

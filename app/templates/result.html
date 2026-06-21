@@ -1,0 +1,91 @@
+<div class="card">
+  <h2 style="margin-top:0">{{ ticker_name }} ／ {{ strategy_label }}（{{ period_label }}）</h2>
+  <p style="color:var(--muted);font-size:.85rem">
+    パラメータ:
+    {% for name, meta in param_specs.items() %}{{ meta[0] }}={{ r.params[name] }}{% if not loop.last %} / {% endif %}{% endfor %}
+  </p>
+
+  <div class="grid" style="margin:16px 0">
+    <div class="metric">
+      <div class="m-label">戦略リターン</div>
+      <div class="m-value {{ 'pos' if r.total_return_pct >= 0 else 'neg' }}">{{ r.total_return_pct }}%</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">バイ&ホールド</div>
+      <div class="m-value {{ 'pos' if r.buy_hold_return_pct >= 0 else 'neg' }}">{{ r.buy_hold_return_pct }}%</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">勝率</div>
+      <div class="m-value">{{ r.win_rate_pct }}%</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">取引回数</div>
+      <div class="m-value">{{ r.n_trades }}回</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">最大ドローダウン</div>
+      <div class="m-value neg">-{{ r.max_drawdown_pct }}%</div>
+    </div>
+    <div class="metric">
+      <div class="m-label">シャープレシオ</div>
+      <div class="m-value">{{ r.sharpe }}</div>
+    </div>
+  </div>
+
+  <canvas id="equityChart" height="110"></canvas>
+
+  {% if r.trades %}
+  <details style="margin-top:16px">
+    <summary style="cursor:pointer;color:var(--accent)">取引履歴（{{ r.trades|length }}件）</summary>
+    <table class="trades">
+      <thead><tr><th>買い日</th><th>売り日</th><th>買値</th><th>売値</th><th>損益</th></tr></thead>
+      <tbody>
+        {% for t in r.trades %}
+        <tr>
+          <td>{{ t.entry_date }}</td><td>{{ t.exit_date }}</td>
+          <td>{{ "%.1f"|format(t.entry_price) }}</td><td>{{ "%.1f"|format(t.exit_price) }}</td>
+          <td class="{{ 'pos' if t.return_pct >= 0 else 'neg' }}">{{ t.return_pct }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+</div>
+
+<style>
+  .metric { background:#0f172a; border-radius:8px; padding:12px 14px; }
+  .m-label { color:var(--muted); font-size:.75rem; margin-bottom:4px; }
+  .m-value { font-size:1.3rem; font-weight:700; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  table.trades { width:100%; border-collapse:collapse; margin-top:10px; font-size:.82rem; }
+  table.trades th, table.trades td { padding:6px 8px; text-align:right; border-bottom:1px solid #334155; }
+  table.trades th:first-child, table.trades td:first-child,
+  table.trades th:nth-child(2), table.trades td:nth-child(2) { text-align:left; }
+</style>
+
+<script>
+  (function() {
+    const curve = {{ r.equity_curve | tojson }};
+    const ctx = document.getElementById('equityChart');
+    if (window._eqChart) window._eqChart.destroy();
+    window._eqChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: curve.map(p => p.date),
+        datasets: [
+          { label: '戦略', data: curve.map(p => p.equity), borderColor: '#38bdf8', borderWidth: 2, pointRadius: 0, tension: .1 },
+          { label: 'バイ&ホールド', data: curve.map(p => p.buyhold), borderColor: '#94a3b8', borderWidth: 1, borderDash: [4,4], pointRadius: 0, tension: .1 }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#e2e8f0' } } },
+        scales: {
+          x: { ticks: { color: '#94a3b8', maxTicksLimit: 8 }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' }, title: { display: true, text: '資産（初期=1.0）', color: '#94a3b8' } }
+        }
+      }
+    });
+  })();
+</script>

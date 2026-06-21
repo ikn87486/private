@@ -1,0 +1,49 @@
+{% include "_validate_style.html" %}
+
+{% if not scan.ok %}
+  <div class="card"><p style="color:var(--muted)">検証できるデータがありませんでした。先に「ペーパートレード」でデータを収集してください。</p></div>
+{% else %}
+<div class="card">
+  <h3>🔬 {{ strategy_label }} ― ユニバース全体の検証結果</h3>
+  <div class="vgrid">
+    <div class="v-metric"><div class="vm-label">検証した銘柄</div><div class="vm-value">{{ scan.n }}</div></div>
+    <div class="v-metric"><div class="vm-label">信頼できる戦略</div>
+      <div class="vm-value pos">{{ scan.n_good }}銘柄（{{ scan.good_ratio }}%）</div></div>
+    <div class="v-metric"><div class="vm-label">検証期間の平均リターン</div>
+      <div class="vm-value {{ 'pos' if scan.universe_oos_avg >= 0 else 'neg' }}">{{ scan.universe_oos_avg }}%</div></div>
+  </div>
+  <p class="note">
+    各銘柄ごとに、学習期間で最適パラメータを選び→未知の検証期間で成績を測る、を時間をずらして繰り返した結果です。
+    「信頼できる」は<b>検証期間が複利でプラス かつ 勝ちウィンドウが半分以上</b>のもの。
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="lcol">銘柄</th><th>判定</th>
+        <th>学習平均</th><th>検証平均</th><th>劣化幅</th>
+        <th>検証複利</th><th>勝ち窓</th><th>窓数</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in scan.results %}
+      <tr>
+        <td class="lcol">{{ stock_name(r.ticker) }}</td>
+        <td><span class="badge b-{{ r.vclass }}">{{ '◎' if r.vclass=='good' else ('×' if r.vclass=='bad' else '△') }}</span></td>
+        <td>{{ r.is_avg }}%</td>
+        <td class="{{ 'pos' if r.oos_avg >= 0 else 'neg' }}">{{ r.oos_avg }}%</td>
+        <td class="{{ 'neg' if r.degradation > 20 else '' }}">{{ r.degradation }}pt</td>
+        <td class="{{ 'pos' if r.oos_compound >= 0 else 'neg' }}">{{ r.oos_compound }}%</td>
+        <td>{{ r.win_ratio }}%</td>
+        <td>{{ r.n_windows }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    ◎=信頼できる　△=不安定・弱い　×=過剰最適化の疑い。<br>
+    <b>劣化幅</b>（学習平均−検証平均）が大きいほど、過去に最適化されすぎて将来に弱いサイン。
+    検証複利が大きくても勝ち窓が少なければ「数回の大当たり頼み」で再現性は低いと判断します。
+  </p>
+</div>
+{% endif %}

@@ -1,0 +1,148 @@
+<style>
+  .lmetric { background:#0f172a; border-radius:8px; padding:12px 14px; }
+  .lm-label { color:var(--muted); font-size:.75rem; margin-bottom:4px; }
+  .lm-value { font-size:1.3rem; font-weight:700; }
+  .lgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  table { width:100%; border-collapse:collapse; font-size:.84rem; margin-top:8px; }
+  th, td { padding:7px 9px; text-align:right; border-bottom:1px solid #334155; }
+  th { color:var(--muted); font-weight:600; }
+  th:first-child, td:first-child, .lcol { text-align:left; }
+  h3 { margin:0 0 12px; font-size:1.05rem; }
+  .note { color:var(--muted); font-size:.78rem; margin-top:10px; line-height:1.6; }
+  .act { background:#0f172a; border-left:3px solid var(--accent); border-radius:6px; padding:10px 12px; margin-bottom:8px; font-size:.86rem; }
+  .empty { color:var(--muted); }
+</style>
+
+{% set st = state %}
+
+{% if last_action %}
+  {% if last_action.ok %}
+  <div class="card">
+    <h3>📅 実行結果（{{ last_action.run_date }}）</h3>
+    {% if last_action.buys %}
+      {% for b in last_action.buys %}
+      <div class="act">🟢 新規買い：{{ b.name }} {{ b.shares }}株 @ {{ b.price }}円（{{ b.regime }}）</div>
+      {% endfor %}
+    {% endif %}
+    {% if last_action.sells %}
+      {% for s in last_action.sells %}
+      <div class="act">🔴 売却：{{ s.name }} @ {{ s.price }}円　損益 <span class="{{ 'pos' if s.pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(s.pnl) }}円</span>（{{ s.reason }}）</div>
+      {% endfor %}
+    {% endif %}
+    {% if not last_action.buys and not last_action.sells %}
+      <div class="act empty">本日は売買シグナルなし（建玉を維持）。</div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="card"><p class="empty">{{ last_action.reason }}</p></div>
+  {% endif %}
+{% endif %}
+
+{% if not lives %}
+  <div class="card">
+    <p class="empty">まだ取引対象が選定されていません。上の「①銘柄選定を更新」を押すと、ウォークフォワード検証で◎判定の銘柄・戦略を自動抽出します。</p>
+  </div>
+{% else %}
+
+  <!-- 口座サマリー -->
+  <div class="card">
+    <h3>💼 口座状況（初期資金 {{ "{:,.0f}".format(st.initial_cash) }}円）</h3>
+    <div class="lgrid">
+      <div class="lmetric"><div class="lm-label">総資産</div>
+        <div class="lm-value {{ 'pos' if st.total_value >= st.initial_cash else 'neg' }}">{{ "{:,.0f}".format(st.total_value) }}円</div></div>
+      <div class="lmetric"><div class="lm-label">トータルリターン</div>
+        <div class="lm-value {{ 'pos' if st.total_return_pct >= 0 else 'neg' }}">{{ "{:+}".format(st.total_return_pct) }}%</div></div>
+      <div class="lmetric"><div class="lm-label">現金</div><div class="lm-value">{{ "{:,.0f}".format(st.cash) }}円</div></div>
+      <div class="lmetric"><div class="lm-label">建玉評価額</div><div class="lm-value">{{ "{:,.0f}".format(st.holdings_value) }}円</div></div>
+      <div class="lmetric"><div class="lm-label">保有銘柄数</div><div class="lm-value">{{ st.positions|length }}</div></div>
+    </div>
+    {% if st.equity_curve|length > 1 %}
+    <canvas id="equityLive" height="100" style="margin-top:14px"></canvas>
+    {% endif %}
+  </div>
+
+  <!-- 保有中ポジション -->
+  <div class="card">
+    <h3>📦 保有中のポジション</h3>
+    {% if st.positions %}
+    <table>
+      <thead><tr><th class="lcol">銘柄</th><th>株数</th><th>取得</th><th>現在</th><th>含み損益</th><th>損益率</th><th class="lcol">建玉時の状況</th></tr></thead>
+      <tbody>
+        {% for p in st.positions %}
+        <tr>
+          <td class="lcol">{{ p.name }}</td>
+          <td>{{ p.shares }}</td>
+          <td>{{ "%.1f"|format(p.entry_price) }}</td>
+          <td>{{ p.last_price }}</td>
+          <td class="{{ 'pos' if p.unrealized_pnl >= 0 else 'neg' }}">{{ "{:+,.0f}".format(p.unrealized_pnl) }}</td>
+          <td class="{{ 'pos' if p.unrealized_pct >= 0 else 'neg' }}">{{ p.unrealized_pct }}%</td>
+          <td class="lcol" style="font-size:.76rem;color:var(--muted)">{{ p.market_regime }} / RSI{{ p.entry_rsi }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">現在ノーポジション（すべて現金）。</p>
+    {% endif %}
+  </div>
+
+  <!-- 選定済み戦略 -->
+  <div class="card">
+    <h3>🎯 ボットが取引する戦略（検証◎・{{ lives|length }}銘柄）</h3>
+    <table>
+      <thead><tr><th class="lcol">銘柄</th><th class="lcol">戦略</th><th class="lcol">パラメータ</th><th>検証複利</th></tr></thead>
+      <tbody>
+        {% for s in lives %}
+        <tr>
+          <td class="lcol">{{ s.ticker }}</td>
+          <td class="lcol">{{ strategy_labels.get(s.strategy, s.strategy) }}</td>
+          <td class="lcol" style="font-size:.78rem;color:var(--muted)">{% for k,v in s.params.items() %}{{ k }}={{ v }} {% endfor %}</td>
+          <td class="pos">+{{ s.oos_compound }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 日次実行ログ -->
+  {% if st.runs %}
+  <div class="card">
+    <h3>🗓 自動実行ログ</h3>
+    <table>
+      <thead><tr><th class="lcol">日付</th><th>買い</th><th>売り</th><th>現金</th><th>建玉評価</th><th>総資産</th></tr></thead>
+      <tbody>
+        {% for r in st.runs %}
+        <tr>
+          <td class="lcol">{{ r.run_date }}</td>
+          <td>{{ r.n_buys }}</td><td>{{ r.n_sells }}</td>
+          <td>{{ "{:,.0f}".format(r.cash) }}</td>
+          <td>{{ "{:,.0f}".format(r.holdings_value) }}</td>
+          <td>{{ "{:,.0f}".format(r.total_value) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if st.equity_curve|length > 1 %}
+  <script>
+    (function() {
+      const curve = {{ st.equity_curve | tojson }};
+      const ctx = document.getElementById('equityLive');
+      if (!ctx) return;
+      if (window._liveChart) window._liveChart.destroy();
+      window._liveChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: curve.map(p => p.date),
+          datasets: [{ label:'総資産', data: curve.map(p => p.total), borderColor:'#38bdf8', borderWidth:2, pointRadius:0, tension:.1, fill:true, backgroundColor:'rgba(56,189,248,.08)' }] },
+        options: { responsive:true, plugins:{ legend:{ labels:{ color:'#e2e8f0' } } },
+          scales:{ x:{ ticks:{ color:'#94a3b8', maxTicksLimit:8 }, grid:{ color:'#1e293b' } },
+                   y:{ ticks:{ color:'#94a3b8' }, grid:{ color:'#1e293b' } } } }
+      });
+    })();
+  </script>
+  {% endif %}
+
+{% endif %}

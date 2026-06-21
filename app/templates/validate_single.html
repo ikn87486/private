@@ -1,0 +1,47 @@
+{% include "_validate_style.html" %}
+
+{% if not r.ok %}
+  <div class="card"><p style="color:var(--muted)">{{ r.reason }}</p></div>
+{% else %}
+<div class="card">
+  <h3>🔬 {{ ticker_name }} ― {{ strategy_label }}</h3>
+  <p style="margin:0 0 14px"><span class="badge b-{{ r.vclass }}">{{ r.verdict }}</span></p>
+
+  <div class="vgrid">
+    <div class="v-metric"><div class="vm-label">学習期間 平均</div><div class="vm-value">{{ r.is_avg }}%</div></div>
+    <div class="v-metric"><div class="vm-label">検証期間 平均</div>
+      <div class="vm-value {{ 'pos' if r.oos_avg >= 0 else 'neg' }}">{{ r.oos_avg }}%</div></div>
+    <div class="v-metric"><div class="vm-label">劣化幅</div>
+      <div class="vm-value {{ 'neg' if r.degradation > 20 else '' }}">{{ r.degradation }}pt</div></div>
+    <div class="v-metric"><div class="vm-label">検証期間 複利</div>
+      <div class="vm-value {{ 'pos' if r.oos_compound >= 0 else 'neg' }}">{{ r.oos_compound }}%</div></div>
+    <div class="v-metric"><div class="vm-label">勝ちウィンドウ</div><div class="vm-value">{{ r.win_ratio }}%</div></div>
+    <div class="v-metric"><div class="vm-label">ウィンドウ数</div><div class="vm-value">{{ r.n_windows }}</div></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th class="lcol">学習期間</th><th class="lcol">検証期間</th><th class="lcol">選ばれた最適値</th>
+        <th>学習</th><th>検証</th><th>取引</th></tr>
+    </thead>
+    <tbody>
+      {% for w in r.windows %}
+      <tr>
+        <td class="lcol">{{ w.train }}</td>
+        <td class="lcol">{{ w.test }}</td>
+        <td class="lcol" style="font-size:.78rem;color:var(--muted)">
+          {% for k,v in w.params.items() %}{{ k }}={{ v }}{% if not loop.last %} / {% endif %}{% endfor %}
+        </td>
+        <td>{{ w.is_return }}%</td>
+        <td class="{{ 'pos' if w.oos_return >= 0 else 'neg' }}">{{ w.oos_return }}%</td>
+        <td>{{ w.oos_trades }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note">
+    各行は1つの検証サイクル。左の「学習期間」で最も成績の良いパラメータを選び、それを右の「検証期間」（未知データ）に当てた結果です。
+    「検証」列が安定してプラスなら信頼性が高い。学習で高く検証で低い行が多いほど過剰最適化です。
+  </p>
+</div>
+{% endif %}

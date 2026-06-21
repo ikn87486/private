@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>調査スクリーナー</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --text:#e2e8f0; --muted:#94a3b8; --green:#22c55e; --red:#ef4444; --amber:#f59e0b; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "Hiragino Sans", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0 16px 60px; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; padding: 24px 0 8px; }
+    h2 { font-size: 1.1rem; }
+    .sub { color: var(--muted); margin-bottom: 20px; font-size: .9rem; }
+    .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    button { cursor: pointer; font-weight: 600; border: none; padding: 10px 16px; border-radius: 8px; font-size: .95rem; }
+    .btn-primary { background: var(--accent); color: #042f3f; }
+    .btn-secondary { background: #334155; color: var(--text); }
+    button:hover { opacity: .9; }
+    .btns { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    select, input { padding: 9px 11px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: var(--text); font-size: .9rem; }
+    label.fld { display:block; font-size:.78rem; color:var(--muted); margin-bottom:5px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+    .htmx-indicator { display: none; color: var(--accent); margin-left: 8px; }
+    .htmx-request .htmx-indicator { display: inline; }
+    .nav { display:flex; gap:8px; padding:18px 0 0; flex-wrap: wrap; }
+    .nav a { padding:8px 16px; border-radius:8px; text-decoration:none; color:var(--muted); background:var(--card); font-size:.9rem; }
+    .nav a.active { background:var(--accent); color:#042f3f; font-weight:600; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid #334155; white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; }
+    td.l, th.l { text-align: left; }
+    .scroll { overflow-x: auto; }
+    .badge { font-size: .7rem; padding: 2px 6px; border-radius: 6px; }
+    .jp { background:#7c2d12; color:#fed7aa; } .us { background:#1e3a8a; color:#bfdbfe; }
+    .score { font-weight: 700; color: var(--accent); }
+    .up { color: var(--green); } .down { color: var(--red); } .warn { color: var(--amber); }
+    .reasons { color: var(--muted); font-size: .78rem; white-space: normal; min-width: 220px; }
+    .muted { color: var(--muted); } .small { font-size:.8rem; }
+    .kpis { display:flex; gap:18px; flex-wrap:wrap; }
+    .kpi { background:#0f172a; border-radius:8px; padding:12px 16px; min-width:120px; }
+    .kpi .v { font-size:1.3rem; font-weight:700; } .kpi .k { font-size:.75rem; color:var(--muted); }
+    /* 期間タブ（候補一覧・精度の内部） */
+    .tabs input[type=radio] { display:none; }
+    .tabs label { display:inline-block; padding:8px 16px; border-radius:8px 8px 0 0; background:#334155; color:var(--muted); cursor:pointer; margin-right:4px; }
+    .tabs .panel { display:none; }
+    #h3:checked ~ label[for=h3], #h5:checked ~ label[for=h5], #h10:checked ~ label[for=h10] { background:var(--accent); color:#042f3f; font-weight:600; }
+    #h3:checked ~ #p3, #h5:checked ~ #p5, #h10:checked ~ #p10 { display:block; }
+    /* メインタブ */
+    .maintabs > input[type=radio] { display:none; }
+    .maintabs > label { display:inline-block; padding:10px 18px; border-radius:8px 8px 0 0; background:#334155; color:var(--muted); cursor:pointer; margin-right:4px; font-weight:600; }
+    #t1:checked ~ label[for=t1], #t2:checked ~ label[for=t2], #t3:checked ~ label[for=t3] { background:var(--accent); color:#042f3f; }
+    .maintabs > .mainpanel { display:none; padding-top:16px; }
+    #t1:checked ~ #m1, #t2:checked ~ #m2, #t3:checked ~ #m3 { display:block; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a href="/">バックテスト</a>
+      <a href="/screen" class="active">調査</a>
+      <a href="/paper">ペーパートレード</a>
+      <a href="/validate">戦略検証</a>
+      <a href="/live">自動売買</a>
+      <a href="/report">振り返り</a>
+    </nav>
+    <h1>🔎 調査スクリーナー（数日〜2週間）</h1>
+    <p class="sub">日米計 {{ n_universe }} 銘柄を価格・出来高データから評価。候補の一覧・予測の的中記録・
+       予測に基づく売買のフォワード検証（結果論なし）を行えます。</p>
+
+    <div class="maintabs">
+      <input type="radio" name="maintab" id="t1" checked>
+      <input type="radio" name="maintab" id="t2">
+      <input type="radio" name="maintab" id="t3">
+      <label for="t1">候補一覧</label>
+      <label for="t2">精度（記録）</label>
+      <label for="t3">シミュレーション</label>
+
+      <!-- 候補一覧 -->
+      <div class="mainpanel" id="m1">
+        <div class="card">
+          <div class="btns">
+            <button class="btn-primary" hx-post="/screen/refresh" hx-target="#screen-result"
+                    hx-swap="innerHTML" hx-indicator="#ind1">① 最新データで再評価</button>
+            <button class="btn-secondary" hx-post="/screen/calibrate" hx-target="#screen-result"
+                    hx-swap="innerHTML" hx-indicator="#ind1">② スコアを較正</button>
+            <span id="ind1" class="htmx-indicator">⏳ 処理中…（初回はデータ取得で数分かかることがあります）</span>
+          </div>
+          <p class="small muted" style="margin:12px 0 0;">はじめは「②較正」→「①再評価」の順に実行してください。</p>
+        </div>
+        <div id="screen-result">{% include "screen_panel.html" %}</div>
+      </div>
+
+      <!-- 精度（記録） -->
+      <div class="mainpanel" id="m2">
+        <div class="card">
+          <div class="btns">
+            <button class="btn-primary" hx-post="/screen/accuracy" hx-target="#accuracy-result"
+                    hx-swap="innerHTML" hx-indicator="#ind2">再計算（ウォークフォワード検証）</button>
+            <button class="btn-secondary" hx-post="/screen/outcomes" hx-target="#accuracy-result"
+                    hx-swap="innerHTML" hx-indicator="#ind2">記録（実績を記入）</button>
+            <span id="ind2" class="htmx-indicator">⏳ 計算中…</span>
+          </div>
+          <p class="small muted" style="margin:12px 0 0;">
+            「再計算」は過去データを各時点までの情報だけで較正・予測し実績と照合します（結果論なし）。
+            「記録」は期限が来た過去の予測に実際の結果を記入します（日が経つほど貯まります）。
+          </p>
+        </div>
+        <div id="accuracy-result">{% include "screen_accuracy.html" %}</div>
+      </div>
+
+      <!-- シミュレーション -->
+      <div class="mainpanel" id="m3">
+        <div class="card">
+          <form class="row" hx-post="/screen/sim/run" hx-target="#sim-result"
+                hx-swap="innerHTML" hx-indicator="#ind3">
+            <div><label class="fld">期間</label>
+              <select name="years">{% for y,l in sim_years.items() %}<option value="{{ y }}" {% if y==2 %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+            <div><label class="fld">保有期間</label>
+              <select name="horizon">{% for h in horizons %}<option value="{{ h }}" {% if h==5 %}selected{% endif %}>{{ horizon_labels[h] }}</option>{% endfor %}</select></div>
+            <div><label class="fld">保有銘柄数</label>
+              <select name="top_n"><option>3</option><option selected>5</option><option>8</option><option>10</option></select></div>
+            <div><label class="fld">リバランス</label>
+              <select name="rebalance"><option value="weekly" selected>週次</option><option value="daily">日次</option></select></div>
+            <div><button class="btn-primary" type="submit">シミュレーション実行</button></div>
+            <span id="ind3" class="htmx-indicator">⏳ 検証中…（数十秒〜）</span>
+          </form>
+          <p class="small muted" style="margin:12px 0 0;">
+            各時点のスコア上位を翌営業日始値で建玉し、損切り/利確/期限で前向きに手仕舞います。
+            後から良い売買点を選ぶこと（結果論）は行いません。同じ条件なら結果は常に一致します。
+          </p>
+        </div>
+        <div id="sim-result">{% include "screen_sim.html" %}</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>日本株バックテスト</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --text:#e2e8f0; --muted:#94a3b8; --green:#22c55e; --red:#ef4444; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "Hiragino Sans", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0 16px 60px; }
+    .wrap { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; padding: 24px 0 8px; }
+    .sub { color: var(--muted); margin-bottom: 24px; font-size: .9rem; }
+    .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+    label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 6px; }
+    select, button { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: var(--text); font-size: .95rem; }
+    .btns { display: flex; gap: 12px; margin-top: 18px; }
+    button { cursor: pointer; font-weight: 600; border: none; }
+    .btn-primary { background: var(--accent); color: #042f3f; }
+    .btn-secondary { background: #334155; color: var(--text); }
+    button:hover { opacity: .9; }
+    .htmx-indicator { display: none; color: var(--accent); margin-top: 16px; }
+    .htmx-request .htmx-indicator { display: block; }
+    .nav { display:flex; gap:8px; padding:18px 0 0; }
+    .nav a { padding:8px 16px; border-radius:8px; text-decoration:none; color:var(--muted); background:var(--card); font-size:.9rem; }
+    .nav a.active { background:var(--accent); color:#042f3f; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a href="/" class="active">バックテスト</a>
+      <a href="/screen">調査</a>
+      <a href="/paper">ペーパートレード</a>
+      <a href="/validate">戦略検証</a>
+      <a href="/live">自動売買</a>
+      <a href="/report">振り返り</a>
+    </nav>
+    <h1>📈 日本株バックテスト</h1>
+    <p class="sub">Yahoo Finance のデータで売買戦略を検証し、どんな条件なら利益が出るかを計算します。</p>
+
+    <form class="card" hx-post="/backtest" hx-target="#result" hx-swap="innerHTML" hx-indicator="#loading">
+      <div class="grid">
+        <div>
+          <label>銘柄</label>
+          <select name="ticker">
+            {% for code, name in stocks.items() %}
+            <option value="{{ code }}">{{ name }}（{{ code }}）</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>戦略</label>
+          <select name="strategy">
+            {% for key, spec in strategies.items() %}
+            <option value="{{ key }}">{{ spec.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label>期間</label>
+          <select name="period">
+            {% for key, label in periods.items() %}
+            <option value="{{ key }}" {% if key == '5y' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="btns">
+        <button type="submit" class="btn-primary" name="mode" value="single">バックテスト実行</button>
+        <button type="submit" class="btn-secondary" name="mode" value="optimize">利益が出る条件を探索</button>
+      </div>
+      <div id="loading" class="htmx-indicator">⏳ 計算中…（初回はデータ取得に数秒かかります）</div>
+    </form>
+
+    <div id="result"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,97 @@
+{% if sim_error %}
+<div class="card warn">{{ sim_error }}</div>
+{% endif %}
+
+{% if not sim or not sim.ok %}
+  {% if not sim_error %}
+  <div class="card muted">まだシミュレーション結果がありません。上のフォームで条件を選び「シミュレーション実行」を押してください。</div>
+  {% endif %}
+{% else %}
+{% set s = sim.summary %}
+<div class="card">
+  <h2>結果サマリ</h2>
+  <p class="small muted">
+    期間 {{ s.get('start') or s.get('start_date') }} 〜 {{ s.get('end') or s.get('end_date') }}　/
+    保有 {{ horizon_labels.get(s.horizon, s.horizon) }}　/ 上位{{ s.get('top_n','-') }}銘柄　/ {{ '週次' if s.get('rebalance','weekly')=='weekly' else '日次' }}リバランス
+  </p>
+  <div class="kpis">
+    <div class="kpi"><div class="v {{ 'up' if (s.total_return or 0) > 0 else 'down' }}">{{ s.total_return }}%</div><div class="k">累計リターン</div></div>
+    <div class="kpi"><div class="v">{{ s.benchmark_return }}%</div><div class="k">指数（日米均等）</div></div>
+    <div class="kpi"><div class="v {{ 'up' if (s.excess or 0) > 0 else 'down' }}">{{ s.excess }}%</div><div class="k">対指数 超過</div></div>
+    <div class="kpi"><div class="v {{ 'up' if (s.win_rate or 0) >= 50 else 'down' }}">{{ s.win_rate }}%</div><div class="k">勝率</div></div>
+    <div class="kpi"><div class="v down">-{{ s.max_dd }}%</div><div class="k">最大ドローダウン</div></div>
+    <div class="kpi"><div class="v">{{ s.sharpe }}</div><div class="k">シャープ</div></div>
+    <div class="kpi"><div class="v">{{ s.n_trades }}</div><div class="k">トレード数</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>資産推移（初期=1.0）</h2>
+  <canvas id="simChart" height="110"></canvas>
+  <script type="application/json" id="sim-curve">{{ sim.curve | tojson }}</script>
+  <script>
+    (function () {
+      var el = document.getElementById('sim-curve');
+      if (!el || typeof Chart === 'undefined') return;
+      var data = JSON.parse(el.textContent);
+      var ctx = document.getElementById('simChart');
+      if (window._simChart) { window._simChart.destroy(); }
+      window._simChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.map(function (d) { return d.date; }),
+          datasets: [
+            { label: '戦略', data: data.map(function (d) { return d.equity; }),
+              borderColor: '#38bdf8', borderWidth: 2, pointRadius: 0, tension: .1 },
+            { label: '指数(日米均等)', data: data.map(function (d) { return d.benchmark; }),
+              borderColor: '#94a3b8', borderWidth: 1, pointRadius: 0, borderDash: [4, 4], tension: .1 }
+          ]
+        },
+        options: { responsive: true, plugins: { legend: { labels: { color: '#e2e8f0' } } },
+          scales: { x: { ticks: { color: '#94a3b8', maxTicksLimit: 8 } },
+                    y: { ticks: { color: '#94a3b8' } } } }
+      });
+    })();
+  </script>
+</div>
+
+<div class="card">
+  <h2>トレード明細（直近100件）</h2>
+  <p class="small muted">建玉日はシグナル日の<strong>翌営業日</strong>＝先読みなしの証跡。出口は建玉時に固定した損切り/利確/期限。</p>
+  {% set reason_label = {'target':'利確', 'stop':'損切り', 'timeout':'期限'} %}
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="l">銘柄</th><th>市場</th><th>スコア</th>
+          <th>建玉日</th><th>建値</th><th>手仕舞日</th><th>決済値</th>
+          <th>リターン</th><th>出口</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in sim.trades %}
+        <tr>
+          <td class="l">{{ t.name }}<br><span class="muted small">{{ t.ticker }}</span></td>
+          <td><span class="badge {{ 'jp' if t.market == 'JP' else 'us' }}">{{ t.market }}</span></td>
+          <td class="score">{{ t.score_at_entry }}</td>
+          <td class="muted">{{ t.entry_date }}</td>
+          <td>{{ t.entry_price }}</td>
+          <td class="muted">{{ t.exit_date }}</td>
+          <td>{{ t.exit_price }}</td>
+          <td class="{{ 'up' if t.return_pct > 0 else 'down' }}">{{ t.return_pct }}%</td>
+          <td class="small">{{ reason_label.get(t.exit_reason, t.exit_reason) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if sim.reasons %}
+  <p class="small muted" style="margin-top:10px;">出口の内訳:
+    {% for k, v in sim.reasons.items() %}{{ reason_label.get(k, k) }} {{ v }}件　{% endfor %}</p>
+  {% endif %}
+</div>
+
+<div class="card small muted">
+  ※ 流動性・スリッページ・部分約定は簡略化（コスト片道0.1%、約定は始値/設定価格）。実運用とは差が出ます。
+</div>
+{% endif %}

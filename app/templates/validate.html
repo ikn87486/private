@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>戦略検証｜日本株</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --text:#e2e8f0; --muted:#94a3b8; --green:#22c55e; --red:#ef4444; --amber:#f59e0b; }
+    * { box-sizing:border-box; }
+    body { font-family:-apple-system,"Hiragino Sans",sans-serif; background:var(--bg); color:var(--text); margin:0; padding:0 16px 60px; }
+    .wrap { max-width:1000px; margin:0 auto; }
+    .nav { display:flex; gap:8px; padding:18px 0 0; }
+    .nav a { padding:8px 16px; border-radius:8px; text-decoration:none; color:var(--muted); background:var(--card); font-size:.9rem; }
+    .nav a.active { background:var(--accent); color:#042f3f; font-weight:600; }
+    h1 { font-size:1.5rem; padding:18px 0 6px; }
+    .sub { color:var(--muted); margin-bottom:20px; font-size:.9rem; line-height:1.6; }
+    .card { background:var(--card); border-radius:12px; padding:18px; margin-bottom:18px; }
+    label { display:block; font-size:.8rem; color:var(--muted); margin-bottom:6px; }
+    select, button { padding:10px 12px; border-radius:8px; border:1px solid #334155; background:#0f172a; color:var(--text); font-size:.92rem; }
+    button { cursor:pointer; font-weight:600; border:none; background:var(--accent); color:#042f3f; }
+    button:hover { opacity:.9; }
+    .row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+    .htmx-indicator { display:none; color:var(--accent); margin-top:14px; }
+    .htmx-request .htmx-indicator { display:block; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a href="/">バックテスト</a>
+      <a href="/screen">調査</a>
+      <a href="/paper">ペーパートレード</a>
+      <a href="/validate" class="active">戦略検証</a>
+      <a href="/live">自動売買</a>
+      <a href="/report">振り返り</a>
+    </nav>
+    <h1>🔬 ウォークフォワード検証</h1>
+    <p class="sub">
+      過去を「学習期間」と「未知の検証期間」に分け、学習で選んだ最適パラメータが検証期間でも通用するかを調べます。<br>
+      <b>学習だけ高成績で検証で崩れる＝過剰最適化（カーブフィッティング）</b>。検証でも安定して利益が出る戦略だけが信頼に値します。
+    </p>
+
+    <form class="card row" hx-post="/validate/run" hx-target="#result" hx-indicator="#ind">
+      <div>
+        <label>戦略</label>
+        <select name="strategy">
+          {% for key, spec in strategies.items() %}
+          <option value="{{ key }}">{{ spec.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>学習 / 検証の分け方</label>
+        <select name="split">
+          {% for key, val in splits.items() %}
+          <option value="{{ key }}" {% if key=='3-1' %}selected{% endif %}>{{ val[0] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>対象</label>
+        <select name="scope" onchange="document.getElementById('tickerSel').style.display = this.value==='single' ? 'block':'none'">
+          <option value="universe">全銘柄をスキャン</option>
+          <option value="single">1銘柄を詳しく</option>
+        </select>
+      </div>
+      <div id="tickerSel" style="display:none">
+        <label>銘柄</label>
+        <select name="ticker">
+          {% for code, name in stocks.items() %}
+          <option value="{{ code }}">{{ name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit">検証を実行</button>
+      <div id="ind" class="htmx-indicator">⏳ 検証中…（全銘柄スキャンは10〜20秒）</div>
+    </form>
+
+    <div id="result"></div>
+  </div>
+</body>
+</html>
