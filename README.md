@@ -99,6 +99,23 @@ uv run uvicorn app.main:app --reload --port 8000
 
 起動後、ブラウザで <http://127.0.0.1:8000> を開きます。
 
+## 常時起動での自動運用
+
+予測の保存・実績記入・較正は、PC を起動しておけば自動で回ります（Web サーバの起動は不要）。
+
+- **macOS**: `bash scripts/install_launchd.sh` で launchd に登録（平日 07:30/16:45 にスクリーニング、
+  土 18:00 に精度再計算）。解除は `bash scripts/uninstall_launchd.sh`。
+- **Windows（研究室の常時起動PC向け・推奨）**: タスクスケジューラ版を `scripts/windows/` に用意。
+  セットアップ手順は **[scripts/windows/README.md](scripts/windows/README.md)** を参照
+  （git+uv 導入 → `git clone` → `uv sync` → `register_tasks.ps1` → サーバ常駐 → 電源/タイムゾーン設定）。
+
+リモートで使う場合は **Tailscale**（ポート開放なしで安全に `http://<PC>:8000` へ）を主軸に、
+画面操作が必要なときだけ RDP / Chrome リモートデスクトップを併用するのが安全です。
+本アプリは**認証が無い**ため、公開インターネットへ直接ポート開放しないでください。
+
+> 注意: Mac と Windows の両方で自動実行すると実績DB（`data/stock.db`）が分裂します。
+> 常時起動機を1台に決め、もう一方の自動実行は停止してください。
+
 ## 使い方
 
 1. **銘柄・戦略・期間**を選ぶ。
