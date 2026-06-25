@@ -9,6 +9,9 @@ cd /d "%~dp0..\.."
 if not exist logs mkdir logs
 set "LOG=logs\win_%JOB%.log"
 
+REM Make Python emit UTF-8 so Japanese log text is not garbled (cp932) on Windows.
+set "PYTHONUTF8=1"
+
 REM uv may not be in PATH in scheduler environment; fall back to install location
 set "UV=uv"
 where uv >nul 2>nul || set "UV=%USERPROFILE%\.local\bin\uv.exe"

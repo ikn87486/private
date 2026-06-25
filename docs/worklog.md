@@ -8,9 +8,8 @@
 ## 2026-06-25(6) — ✅ 自動化完成（タスクスケジューラ初の正常完了）
 - **完成**: 6/25 16:45 の `stock_screen_evening` がタスク経由で正常完了（start→done 約50秒、uv=PATH検出）。
   Windowsの自動収集が本稼働。研究室PCを正に、平日朝夕screen＋土accuracyが回る体制が確立。
-- **既知の軽微な点**: `win_screen.log` の日本語出力が文字化け（Python側の出力エンコードがWindowsで
-  cp932のため）。動作は正常で実害なし。クリーンにするなら run_job.bat で `set "PYTHONUTF8=1"` を
-  uv実行前に入れる（/logs ページの可読性も改善）。未対応＝任意。
+- **ログ文字化け対応済み**: run_job.bat に `set "PYTHONUTF8=1"` を追加（uv実行前）。以後の
+  win_screen.log / win_accuracy.log と /logs ページの日本語がUTF-8で正しく出る（既存の古い行は cp932 のまま）。
 - **運用メモ**: ログイン後は画面ロックでOK（タスクは走る）。電源は「スリープなし」推奨。
   再起動時のみ要再ログイン（自動ログインは任意の堅牢化）。
 
