@@ -10,8 +10,13 @@ cd /d "%~dp0..\.."
 if not exist logs mkdir logs
 set "LOG=logs\win_%JOB%.log"
 
-echo [%date% %time%] start %JOB%>> "%LOG%"
-uv run python -m app.daily %JOB% >> "%LOG%" 2>&1
+REM タスクスケジューラは最小環境で動くため uv が PATH に無いことがある。
+REM PATH に無ければ既定のインストール先（%USERPROFILE%\.local\bin\uv.exe）を使う。
+set "UV=uv"
+where uv >nul 2>nul || set "UV=%USERPROFILE%\.local\bin\uv.exe"
+
+echo [%date% %time%] start %JOB% (uv=%UV%)>> "%LOG%"
+"%UV%" run python -m app.daily %JOB% >> "%LOG%" 2>&1
 set "RC=%ERRORLEVEL%"
 
 if not "%RC%"=="0" (

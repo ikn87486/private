@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-06-25(3) — Windowsの自動収集が未稼働と判明・run_job.bat強化
+- **わかったこと**: 研究室PCで `logs\win_screen.log` が存在しない＝`run_job.bat` が一度も実行されていない
+  ＝**タスクスケジューラのジョブが一度も発火していない**。6/23データはセットアップ時の手動実行由来。
+  手動 `app.daily screen` は正常（6/25データ＋実績112件記入＝フィードバックループ稼働開始）。
+- **やったこと**: `scripts/windows/run_job.bat` を uv のフルパス（`%USERPROFILE%\.local\bin\uv.exe`）
+  フォールバックに強化（タスク実行時に uv が PATH に無い問題対策）。
+- **次の一手（研究室PCで確認）**:
+  1. `Get-ScheduledTaskInfo -TaskName stock_screen_evening` の LastRunTime/LastTaskResult。
+  2. 未登録なら `register_tasks.ps1`、その後 `Start-ScheduledTask` で手動発火→ログ生成を確認。
+  3. 恒久対策: 自動ログイン＋「ログオン有無にかかわらず実行」＋スリープ無効。
+  4. 6/24の穴埋め（任意）: `screener.screen(asof='2026-06-24')` で同一スナップショットを再生成可能。
+
 ## 2026-06-25(2) — データ鮮度チェックスクリプトを追加
 - **やったこと**: `scripts/check_data.py`（Mac/Windows共通）を追加。直近の予測スナップショット・価格・
   較正・実績の鮮度を表示し、直近3営業日のスナップショット有無を判定する。
