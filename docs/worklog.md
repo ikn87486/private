@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-06-25 — 2台運用の同期と .claude 共有方針の確定
+- **やったこと**:
+  - 研究室Windows機側の変更を Mac に取り込み（`9b7da78`）: `/logs` ログ表示ページ、`scripts/windows/check.ps1`（診断）。
+  - 研究室PC側が `.gitignore` に `.claude/` を追加していたのを、共有方針に合わせて
+    **`.claude/settings.local.json` のみ無視**へ修正（`.claude/settings.json` は2台共有のため追跡継続）。
+- **決めたこと**:
+  - `.claude/settings.json`（Stopフック＋language）は**2台で共有**（A案）。個人用は `settings.local.json` に置く。
+- **次の一手**:
+  - 研究室PCで `git pull` して .gitignore 修正を反映。`/logs` は nav 未登録なので必要なら追加検討。
+  - 別マシンのセッションでも作業後は worklog 追記を徹底（今回 lab PC 側は worklog 未更新だった）。
+
 ## 2026-06-22 — Windows移行キット＋クロスマシン記憶の整備
 - **やったこと**:
   - 研究室Windows機向けの運用キットを追加（`scripts/windows/`: `run_job.bat`, `register_tasks.ps1`,

@@ -4,4 +4,5 @@ __pycache__/
 .python-version
 data/
 *.log
-.claude/
+# .claude/settings.json は2台共有のため追跡する。個人用ローカル設定のみ無視。
+.claude/settings.local.json
