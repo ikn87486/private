@@ -16,7 +16,8 @@ $settings = New-ScheduledTaskSettingsSet `
 
 function Register-StockTask {
     param([string]$Name, [string]$Arg, $Trigger)
-    $action = New-ScheduledTaskAction -Execute $bat -Argument $Arg -WorkingDirectory $root
+    # cmd.exe /c "<bat>" <arg> 形式（ライブ稼働中のタスクと一致させる）。
+    $action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"`"$bat`" $Arg`"" -WorkingDirectory $root
     Register-ScheduledTask -TaskName $Name -Action $action -Trigger $Trigger `
         -Settings $settings -Description "stock $Arg job" -Force | Out-Null
     Write-Host "registered: $Name"

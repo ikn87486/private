@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-06-25(5) — 真因確定: bat内の非ASCII。register_tasks.ps1も統一
+- **真因**: `run_job.bat` の日本語(非ASCII)コメントが Task Scheduler 下の cmd.exe で誤解釈され 255 で
+  クラッシュ（手動cmdでは成功＝コードページ差）。研究室PCで bat を ASCII 英語化して解決（`bd7b89e`）。
+- **やったこと（Mac側）**: 上記を pull。さらに `register_tasks.ps1` のアクションを、ライブ稼働中のタスクと
+  同じ `cmd.exe /c "<bat>" <arg>` 形式に統一（再登録・別マシン展開での再現性確保）。
+  ※ uv PATH 対策(dea52e5)も併存（多重防御）。
+- **教訓**: Windows の .bat はコメント含め ASCII で書く（日本語を避ける）。
+- **残り**: 本日16:45の自動実行で win_screen.log に "done screen" が出れば完全完成。
+
 ## 2026-06-25(4) — 訂正: タスクは発火していた（255失敗）。原因はuv PATH
 - **訂正**: (3)の「タスクが一度も発火していない」は**誤り**。正しくは **6/24 16:45 にタスクは実行され
   終了コード 255 で失敗**していた（旧 run_job.bat が uv を PATH 解決できず失敗）。win_screen.log が
