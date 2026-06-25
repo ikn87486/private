@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ジョブ実行ログ</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --text:#e2e8f0; --muted:#94a3b8; --green:#22c55e; --red:#ef4444; --amber:#f59e0b; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "Hiragino Sans", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0 16px 60px; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; padding: 24px 0 8px; }
+    h2 { font-size: 1.1rem; margin: 0 0 12px; }
+    .sub { color: var(--muted); margin-bottom: 20px; font-size: .9rem; }
+    .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .nav { display:flex; gap:8px; padding:18px 0 0; flex-wrap: wrap; }
+    .nav a { padding:8px 16px; border-radius:8px; text-decoration:none; color:var(--muted); background:var(--card); font-size:.9rem; }
+    .nav a.active { background:var(--accent); color:#042f3f; font-weight:600; }
+    pre { margin: 0; font-family: "Consolas", "Menlo", monospace; font-size: .82rem; white-space: pre-wrap; word-break: break-all; line-height: 1.7; }
+    .line-ok   { color: var(--green); }
+    .line-fail { color: var(--red); font-weight: 700; }
+    .line-start{ color: var(--muted); }
+    .line-plain{ color: var(--text); }
+    .badge { display:inline-block; font-size:.75rem; padding:2px 8px; border-radius:6px; font-weight:700; }
+    .badge-ok   { background:#14532d; color:#86efac; }
+    .badge-fail { background:#7f1d1d; color:#fca5a5; }
+    .generated { color: var(--muted); font-size: .78rem; text-align: right; margin-top: 8px; }
+    .legend { display:flex; gap:16px; font-size:.8rem; margin-bottom:14px; color:var(--muted); }
+    .legend span { display:flex; align-items:center; gap:6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a href="/">バックテスト</a>
+      <a href="/screen">調査</a>
+      <a href="/paper">ペーパートレード</a>
+      <a href="/validate">戦略検証</a>
+      <a href="/live">自動売買</a>
+      <a href="/report">振り返り</a>
+      <a href="/logs" class="active">ログ</a>
+    </nav>
+
+    <h1>実行ログ</h1>
+    <p class="sub">タスクスケジューラによる自動実行の記録です。<strong>rc=0</strong> なら正常終了。</p>
+
+    <div class="card">
+      <h2>screen ジョブ <small style="color:var(--muted);font-size:.8rem;font-weight:normal;">平日 07:30 / 16:45</small></h2>
+      <div class="legend">
+        <span><span class="badge badge-ok">rc=0</span> 正常終了</span>
+        <span><span class="badge badge-fail">FAILED</span> 異常終了</span>
+      </div>
+      <pre>{% for line in screen_lines %}{% if 'FAILED' in line %}<span class="line-fail">{{ line }}</span>
+{% elif 'rc=0' in line %}<span class="line-ok">{{ line }}</span>
+{% elif 'start' in line %}<span class="line-start">{{ line }}</span>
+{% else %}<span class="line-plain">{{ line }}</span>
+{% endif %}{% endfor %}</pre>
+    </div>
+
+    <div class="card">
+      <h2>accuracy ジョブ <small style="color:var(--muted);font-size:.8rem;font-weight:normal;">土曜 18:00</small></h2>
+      <div class="legend">
+        <span><span class="badge badge-ok">rc=0</span> 正常終了</span>
+        <span><span class="badge badge-fail">FAILED</span> 異常終了</span>
+      </div>
+      <pre>{% for line in accuracy_lines %}{% if 'FAILED' in line %}<span class="line-fail">{{ line }}</span>
+{% elif 'rc=0' in line %}<span class="line-ok">{{ line }}</span>
+{% elif 'start' in line %}<span class="line-start">{{ line }}</span>
+{% else %}<span class="line-plain">{{ line }}</span>
+{% endif %}{% endfor %}</pre>
+    </div>
+
+    <p class="generated">表示時刻: {{ generated_at }}</p>
+  </div>
+</body>
+</html>

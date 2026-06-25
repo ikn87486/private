@@ -444,6 +444,31 @@ def screen_accuracy(request: Request):
     return templates.TemplateResponse(request, "screen_accuracy.html", _screen_context(request))
 
 
+@app.get("/logs", response_class=HTMLResponse)
+def logs_view(request: Request):
+    """ジョブ実行ログ（win_screen.log / win_accuracy.log）を表示する。"""
+    from datetime import datetime as _dt
+
+    log_dir = BASE_DIR.parent / "logs"
+
+    def tail(name: str, n: int = 40) -> list[str]:
+        p = log_dir / name
+        if not p.exists():
+            return ["(まだログがありません)"]
+        lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
+        return lines[-n:] or ["(空のログファイル)"]
+
+    return templates.TemplateResponse(
+        request,
+        "logs.html",
+        {
+            "screen_lines": tail("win_screen.log"),
+            "accuracy_lines": tail("win_accuracy.log"),
+            "generated_at": _dt.now().strftime("%Y-%m-%d %H:%M:%S"),
+        },
+    )
+
+
 @app.post("/screen/sim/run", response_class=HTMLResponse)
 def screen_sim_run(
     request: Request,
