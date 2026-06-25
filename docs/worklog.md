@@ -5,6 +5,13 @@
 
 ---
 
+## 2026-06-25(2) — データ鮮度チェックスクリプトを追加
+- **やったこと**: `scripts/check_data.py`（Mac/Windows共通）を追加。直近の予測スナップショット・価格・
+  較正・実績の鮮度を表示し、直近3営業日のスナップショット有無を判定する。
+- **メモ**: `data/stock.db` は機種ローカル（git非同期）。Mac側は6/22で停止済み（自動収集はWindows機が正）。
+  直近データの確認は**研究室PCで** `uv run python scripts/check_data.py` を実行して行う。
+- **次の一手**: 研究室PCで `git pull` → `check_data.py` 実行し、6/23〜25が揃っているか確認。
+
 ## 2026-06-25 — 2台運用の同期と .claude 共有方針の確定
 - **やったこと**:
   - 研究室Windows機側の変更を Mac に取り込み（`9b7da78`）: `/logs` ログ表示ページ、`scripts/windows/check.ps1`（診断）。
